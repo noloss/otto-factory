@@ -98,7 +98,7 @@ def run_issue(issue_number, feedback=None):
     else:
         _git(["push", "-u", "origin", branch])
         pr_number = gh.create_pr(
-            title=f"{title}",
+            title=title,
             body=f"Closes #{issue_number}\n\n{issue['body'][:500]}",
         )
         print(f"[coder] Opened PR #{pr_number} for issue #{issue_number}")

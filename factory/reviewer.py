@@ -1,3 +1,5 @@
+import json
+import re
 import sys
 from . import github_client as gh
 from .llm_engine import run_claude, READ_ONLY_TOOLS
@@ -58,25 +60,5 @@ def review_pr(pr_number):
     else:
         comment = f"🔴 CHANGES REQUESTED\n\n{findings_text}"
         gh.post_comment(pr_number, comment)
-        # Find the issue number from the PR body and update labels
-        pr_info = _get_pr_info(pr_number)
-        if pr_info:
-            issue_num = _extract_issue_number(pr_info.get("body", ""))
-            if issue_num:
-                gh.update_label(issue_num, add=["revision-needed"], remove=["review-needed"])
         print(f"[reviewer] PR #{pr_number} — changes requested.")
         return "CHANGES_REQUESTED", findings_text
-
-
-def _get_pr_info(pr_number):
-    import json
-    result = gh._run(["pr", "view", str(pr_number), "--json", "body,title"], check=False)
-    if result.returncode == 0:
-        return json.loads(result.stdout)
-    return None
-
-
-def _extract_issue_number(body):
-    import re
-    m = re.search(r"Closes #(\d+)", body or "")
-    return int(m.group(1)) if m else None

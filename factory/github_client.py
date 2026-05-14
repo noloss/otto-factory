@@ -77,7 +77,8 @@ def _get_milestone_number(title):
 
 
 def get_issues(milestone_title, label=None):
-    args = ["issue", "list", "--state", "open", "--json", "number,title,body,labels,state"]
+    args = ["issue", "list", "--state", "open", "--limit", "200",
+            "--json", "number,title,body,labels,state"]
     if label:
         args += ["--label", label]
     if milestone_title:
@@ -130,6 +131,11 @@ def create_pr(title, body, base="main"):
     return int(url.rstrip("/").split("/")[-1])
 
 
+def get_pr(pr_number):
+    result = _run(["pr", "view", str(pr_number), "--json", "number,title,body,state,headRefName"])
+    return json.loads(result.stdout)
+
+
 def get_diff(pr_number):
     result = _run(["pr", "diff", str(pr_number)])
     return result.stdout
@@ -140,7 +146,7 @@ def post_comment(pr_number, body):
 
 
 def merge_pr(pr_number):
-    _run(["pr", "merge", str(pr_number), "--squash", "--delete-branch", "--auto"])
+    _run(["pr", "merge", str(pr_number), "--squash", "--delete-branch"])
 
 
 def close_issue(issue_number, comment=""):

@@ -85,8 +85,12 @@ def split_issue(issue_number):
     return created
 
 
-def process_issue(issue_number, milestone_title):
+def process_issue(issue_number, milestone_title, _depth=0):
     """Run the coder → test → reviewer loop for a single issue."""
+    if _depth > 1:
+        print(f"[orchestrator] Issue #{issue_number} is a sub-issue of a sub-issue — skipping auto-split.", file=sys.stderr)
+        return
+
     if gh.is_issue_done(issue_number):
         print(f"[orchestrator] Issue #{issue_number} already closed, skipping.")
         return
@@ -101,10 +105,10 @@ def process_issue(issue_number, milestone_title):
             pr_number = coder.run_issue(issue_number, feedback=feedback)
 
         if pr_number is None:
-            # Coder timed out — split and recurse
+            # Coder timed out — split and recurse (once only)
             sub_issues = split_issue(issue_number)
             for sub in sub_issues:
-                process_issue(sub, milestone_title)
+                process_issue(sub, milestone_title, _depth=_depth + 1)
             return
 
         # Run tests
@@ -130,6 +134,9 @@ def process_issue(issue_number, milestone_title):
             print(f"[orchestrator] Issue #{issue_number} done. ✓")
             return
 
+        # Reviewer rejected — orchestrator owns the label transition
+        gh.update_label(issue_number, add=["revision-needed"], remove=["review-needed"])
+
         if attempt < MAX_ATTEMPTS:
             print(f"[orchestrator] Changes requested on attempt {attempt} — retrying.")
             feedback  = comment
@@ -146,10 +153,13 @@ def run_milestone(milestone_title):
     """Drive the full pipeline for all open issues in a milestone."""
     print(f"[orchestrator] Starting milestone: {milestone_title}")
 
-    issues = gh.get_issues(milestone_title, label="agent-todo")
-    # Also pick up issues that were sent back for revision
-    issues += [i for i in gh.get_issues(milestone_title, label="revision-needed")
-               if i["number"] not in {x["number"] for x in issues}]
+    seen = set()
+    issues = []
+    for label in ("agent-todo", "revision-needed", "agent-in-progress"):
+        for i in gh.get_issues(milestone_title, label=label):
+            if i["number"] not in seen:
+                seen.add(i["number"])
+                issues.append(i)
     issues.sort(key=lambda x: x["number"])
 
     if not issues:

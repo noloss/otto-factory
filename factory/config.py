@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -13,3 +14,7 @@ CLAUDE_BIN    = os.getenv("CLAUDE_BIN", "claude")
 CODER_TIMEOUT = int(os.getenv("CODER_TIMEOUT", "600"))
 MAX_ATTEMPTS  = int(os.getenv("MAX_ATTEMPTS", "3"))
 PROMPTS_DIR   = Path(__file__).parent / "prompts"
+
+if not GITHUB_REPO:
+    print("Error: GITHUB_REPO is not set. Copy .env.example to .env and fill it in.", file=sys.stderr)
+    sys.exit(1)
