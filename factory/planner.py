@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 from . import github_client as gh
+from .github_client import merge_labels
 from .llm_engine import run_claude
 from .config import PROMPTS_DIR, TEST_COMMAND
 
@@ -33,7 +34,7 @@ def plan(prd_path):
     prompt = f"{prd_text}\n\n{test_hint}".strip()
 
     print("[planner] Calling Claude to analyse PRD…")
-    ok, issues = run_claude(prompt, system=system, schema=PLANNER_SCHEMA, timeout=180)
+    ok, issues = run_claude(prompt, system=system, schema=PLANNER_SCHEMA, timeout=180, label="planner")
 
     if not ok or not issues:
         print("[planner] Failed to get a valid plan from Claude.", file=sys.stderr)
@@ -50,7 +51,7 @@ def plan(prd_path):
             milestones_created[ms_title] = ms_num
             print(f"[planner] Milestone: {ms_title} (#{ms_num})")
 
-        labels = list(set(issue.get("labels", []) + ["agent-todo"]))
+        labels = merge_labels(issue.get("labels", []), "agent-todo")
         gh.ensure_labels(labels)
 
         issue_num = gh.create_issue(

@@ -1,22 +1,20 @@
-import shlex
 import subprocess
 import sys
 from . import coder, reviewer
 from . import github_client as gh
-from .llm_engine import run_claude
-from .config import TARGET_DIR, TEST_COMMAND, MAX_ATTEMPTS, PROMPTS_DIR
+from .github_client import merge_labels
+from .llm_engine import run_claude, RateLimitError
+from .config import TARGET_DIR, TEST_COMMAND, MAX_ATTEMPTS, PROMPTS_DIR, SHELL_INIT
 
 SPLITTER_SCHEMA = {
     "type": "array",
     "items": {
         "type": "object",
-        "required": ["milestone_title", "milestone_desc", "title", "body", "labels"],
+        "required": ["title", "body", "labels"],
         "properties": {
-            "milestone_title": {"type": "string"},
-            "milestone_desc":  {"type": "string"},
-            "title":           {"type": "string"},
-            "body":            {"type": "string"},
-            "labels":          {"type": "array", "items": {"type": "string"}},
+            "title":  {"type": "string"},
+            "body":   {"type": "string"},
+            "labels": {"type": "array", "items": {"type": "string"}},
         },
     },
 }
@@ -27,10 +25,14 @@ def run_tests():
     if not TEST_COMMAND:
         return True, ""
 
-    print(f"[orchestrator] Running tests: {TEST_COMMAND}")
+    cmd = f'{SHELL_INIT}; {TEST_COMMAND}' if SHELL_INIT else TEST_COMMAND
+
+    print(f"[orchestrator] Running tests: {cmd}")
     try:
         result = subprocess.run(
-            shlex.split(TEST_COMMAND),
+            cmd,
+            shell=True,
+            executable="/bin/bash",
             cwd=TARGET_DIR,
             capture_output=True,
             text=True,
@@ -42,6 +44,7 @@ def run_tests():
             print("[orchestrator] Tests passed.")
         else:
             print(f"[orchestrator] Tests failed (exit {result.returncode}).", file=sys.stderr)
+            print(f"[orchestrator] Output:\n{output[:1000]}", file=sys.stderr)
         return passed, output
     except subprocess.TimeoutExpired:
         msg = f"Test command timed out after 300s."
@@ -53,14 +56,14 @@ def run_tests():
         return False, msg
 
 
-def split_issue(issue_number):
+def split_issue(issue_number, milestone_title):
     """Decompose an oversized issue into 2–4 sub-issues. Returns list of new issue numbers."""
     issue  = gh.get_issue(issue_number)
     system = (PROMPTS_DIR / "splitter.txt").read_text()
     prompt = f"Decompose this issue into 2–4 smaller sub-issues:\n\n{issue['body']}"
 
     print(f"[orchestrator] Splitting issue #{issue_number}…")
-    ok, sub_issues = run_claude(prompt, system=system, schema=SPLITTER_SCHEMA, timeout=120)
+    ok, sub_issues = run_claude(prompt, system=system, schema=SPLITTER_SCHEMA, timeout=120, label="splitter")
 
     if not ok or not sub_issues:
         print(f"[orchestrator] Splitter failed for #{issue_number}", file=sys.stderr)
@@ -68,10 +71,10 @@ def split_issue(issue_number):
 
     created = []
     for sub in sub_issues:
-        labels = list(set(sub.get("labels", []) + ["agent-todo"]))
+        labels = merge_labels(sub.get("labels", []), "agent-todo")
         gh.ensure_labels(labels)
         num = gh.create_issue(
-            milestone_title=sub["milestone_title"],
+            milestone_title=milestone_title,
             title=sub["title"],
             body=sub["body"],
             labels=labels,
@@ -95,8 +98,8 @@ def process_issue(issue_number, milestone_title, _depth=0):
         print(f"[orchestrator] Issue #{issue_number} already closed, skipping.")
         return
 
-    feedback    = None
-    pr_number   = None
+    feedback  = None
+    pr_number = gh.find_open_pr_for_issue(issue_number)
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         print(f"\n[orchestrator] Issue #{issue_number} — attempt {attempt}/{MAX_ATTEMPTS}")
@@ -104,9 +107,17 @@ def process_issue(issue_number, milestone_title, _depth=0):
         if pr_number is None:
             pr_number = coder.run_issue(issue_number, feedback=feedback)
 
+        if pr_number == "NO_CHANGES":
+            print(
+                f"[orchestrator] Issue #{issue_number} produced no staged changes — "
+                f"check SOURCE_GLOB in .env. Stopping.",
+                file=sys.stderr,
+            )
+            return
+
         if pr_number is None:
             # Coder timed out — split and recurse (once only)
-            sub_issues = split_issue(issue_number)
+            sub_issues = split_issue(issue_number, milestone_title)
             for sub in sub_issues:
                 process_issue(sub, milestone_title, _depth=_depth + 1)
             return
@@ -132,6 +143,27 @@ def process_issue(issue_number, milestone_title, _depth=0):
 
         if verdict == "LGTM":
             print(f"[orchestrator] Issue #{issue_number} done. ✓")
+            return
+
+        if verdict == "ERROR":
+            print(
+                f"[orchestrator] Reviewer tool failure on issue #{issue_number} — "
+                f"leaving PR open and skipping. Fix the underlying tool error first.",
+                file=sys.stderr,
+            )
+            return
+
+        if verdict == "MERGE_FAILED":
+            print(
+                f"[orchestrator] PR #{pr_number} was approved but merge failed "
+                f"(branch out of date or required checks failing) — marking for revision.",
+                file=sys.stderr,
+            )
+            gh.update_label(issue_number, add=["revision-needed"], remove=["review-needed"])
+            if attempt < MAX_ATTEMPTS:
+                feedback  = comment
+                pr_number = None
+                continue
             return
 
         # Reviewer rejected — orchestrator owns the label transition
@@ -169,6 +201,15 @@ def run_milestone(milestone_title):
     print(f"[orchestrator] {len(issues)} issue(s) to process.")
 
     for issue in issues:
-        process_issue(issue["number"], milestone_title)
+        try:
+            process_issue(issue["number"], milestone_title)
+        except RateLimitError:
+            print(
+                "\n[orchestrator] Claude API rate limit reached — stopping run. "
+                "All remaining issues are labeled 'agent-todo' and will be retried "
+                "on the next run.",
+                file=sys.stderr,
+            )
+            return
 
     print("\n[orchestrator] Milestone run complete.")

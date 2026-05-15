@@ -78,7 +78,12 @@ def _preflight():
 
 def cmd_plan(args):
     from factory.planner import plan
-    plan(args.prd)
+    from factory.llm_engine import RateLimitError
+    try:
+        plan(args.prd)
+    except RateLimitError:
+        print("Claude API rate limit reached. Try again after the limit resets.", file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_run(args):
@@ -88,7 +93,12 @@ def cmd_run(args):
 
 def cmd_code(args):
     from factory import coder
-    pr = coder.run_issue(args.issue, feedback=args.feedback or None)
+    from factory.llm_engine import RateLimitError
+    try:
+        pr = coder.run_issue(args.issue, feedback=args.feedback or None)
+    except RateLimitError:
+        print("Claude API rate limit reached. Try again after the limit resets.", file=sys.stderr)
+        sys.exit(1)
     if pr:
         print(f"PR #{pr} opened.")
     else:

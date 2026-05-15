@@ -24,7 +24,12 @@ def review_pr(pr_number):
     """
     diff = gh.get_diff(pr_number)
 
-    if not diff or not diff.strip():
+    if diff is None:
+        msg = f"Could not fetch diff for PR #{pr_number} — gh command failed. Branch may have been deleted or PR is inaccessible."
+        print(f"[reviewer] {msg}", file=sys.stderr)
+        return "ERROR", msg
+
+    if not diff.strip():
         return "CHANGES_REQUESTED", "Empty diff — nothing was implemented."
 
     if len(diff) > _DIFF_LIMIT:
@@ -40,12 +45,13 @@ def review_pr(pr_number):
         schema=REVIEWER_SCHEMA,
         tools=READ_ONLY_TOOLS,
         timeout=180,
+        label="reviewer",
     )
 
     if not ok or result is None:
-        msg = "Reviewer could not produce a structured response — treating as changes requested."
+        msg = "Reviewer tool failure (auth error, timeout, or crash) — skipping issue."
         print(f"[reviewer] {msg}", file=sys.stderr)
-        return "CHANGES_REQUESTED", msg
+        return "ERROR", msg
 
     approved = result.get("approve", False)
     findings = result.get("findings", [])
@@ -54,7 +60,12 @@ def review_pr(pr_number):
     if approved:
         comment = "✅ LGTM" + (f"\n\n{findings_text}" if findings_text else "")
         gh.post_comment(pr_number, comment)
-        gh.merge_pr(pr_number)
+        merged = gh.merge_pr(pr_number)
+        if not merged:
+            msg = "Merge failed (likely merge conflicts) — branch needs rebase."
+            print(f"[reviewer] PR #{pr_number} — {msg}", file=sys.stderr)
+            gh.post_comment(pr_number, f"🔴 CHANGES REQUESTED\n\n- {msg}")
+            return "MERGE_FAILED", msg
         print(f"[reviewer] PR #{pr_number} approved and merged.")
         return "LGTM", ""
     else:
