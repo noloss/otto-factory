@@ -2,10 +2,10 @@
 """
 otto-factory — Agentic Orchestrator
 Usage:
-  python main.py plan   --prd <path>
-  python main.py run    --milestone <title>
-  python main.py code   --issue <number>
-  python main.py review --pr <number>
+  python main.py [--project PATH] plan   --prd <path>
+  python main.py [--project PATH] run    --milestone <title>
+  python main.py [--project PATH] code   --issue <number>
+  python main.py [--project PATH] review --pr <number>
 """
 import argparse
 import os
@@ -14,12 +14,24 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Load .env early so CLAUDE_BIN / GH_BIN overrides are visible before preflight
+# ── Project directory discovery ───────────────────────────────────────────────
+# Pre-parse --project before importing any factory module, because config.py
+# validates at import time and needs OTTO_PROJECT_DIR set first.
+_pre = argparse.ArgumentParser(add_help=False)
+_pre.add_argument("--project", default=None)
+_pre_args, _ = _pre.parse_known_args()
+
+_project_dir = Path(_pre_args.project).resolve() if _pre_args.project else Path.cwd()
+os.environ["OTTO_PROJECT_DIR"] = str(_project_dir)
+
+# Load the otto-factory machine-level .env (GH_BIN, CLAUDE_BIN) early so
+# preflight can see them before factory modules are imported.
 try:
     from dotenv import load_dotenv
     load_dotenv(Path(__file__).parent / ".env")
+    load_dotenv(_project_dir / ".otto", override=True)
 except ImportError:
-    pass  # dotenv not installed yet — checked below
+    pass  # dotenv not installed yet — checked below in _preflight
 
 
 def _preflight():
@@ -66,7 +78,6 @@ def _preflight():
             if login.returncode != 0:
                 print("Authentication failed. Please run 'gh auth login' manually.", file=sys.stderr)
                 sys.exit(1)
-            # Confirm it worked
             recheck = subprocess.run([gh_bin, "auth", "status"], capture_output=True)
             if recheck.returncode != 0:
                 print("Still not authenticated after login. Please try 'gh auth login' manually.", file=sys.stderr)
@@ -120,6 +131,11 @@ def main():
     parser = argparse.ArgumentParser(
         prog="otto-factory",
         description="Agentic Orchestrator: plan → code → review, driven by GitHub Issues.",
+    )
+    parser.add_argument(
+        "--project", metavar="PATH",
+        help="Path to the target project directory (default: current directory). "
+             "Otto-factory reads per-project config from <PATH>/.otto",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 

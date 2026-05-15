@@ -1,0 +1,29 @@
+# .otto — otto-factory project config
+#
+# Place this file in your project's root directory (alongside your code).
+# It tells otto-factory which GitHub repo and test setup to use for THIS project.
+#
+# Copy to your project:
+#   cp ~/otto-factory/.otto.example ~/my-project/.otto
+#
+# Then fill in the values below.
+
+# Required: your project's GitHub repository.
+# All of these formats are accepted:
+#   GITHUB_REPO=your-username/my-project
+#   GITHUB_REPO=https://github.com/your-username/my-project
+GITHUB_REPO=your-username/your-repo
+
+# Shell command used to run the test suite after each coder attempt.
+# Leave blank to skip automated testing.
+# Examples: "npm test", "pytest", "go test ./...", "cargo test"
+TEST_COMMAND=
+
+# The folder (relative to this project's root) that the coder stages with `git add`
+# before committing. Use "." if your project files are at the root with no src/ folder.
+# Default: src
+SOURCE_GLOB=src
+
+# Optional: instruct the coder to follow project-specific rules.
+# See "Per-project CLAUDE.md" in the otto-factory README.
+# (No setting needed — just create a CLAUDE.md file in this directory.)

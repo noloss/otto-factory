@@ -3,7 +3,14 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent.parent / ".env")
+_otto_factory_dir = Path(__file__).parent.parent
+_project_dir      = Path(os.getenv("OTTO_PROJECT_DIR", str(Path.cwd()))).resolve()
+
+# Layer 1: machine-level defaults (GH_BIN, CLAUDE_BIN, timeout defaults)
+load_dotenv(_otto_factory_dir / ".env")
+
+# Layer 2: project-specific overrides (GITHUB_REPO, TEST_COMMAND, SOURCE_GLOB)
+load_dotenv(_project_dir / ".otto", override=True)
 
 
 def _parse_github_repo(value):
@@ -22,7 +29,8 @@ def _parse_github_repo(value):
 
 
 GITHUB_REPO   = os.getenv("GITHUB_REPO", "")
-TARGET_DIR    = Path(os.getenv("TARGET_DIR", ".")).resolve()
+# TARGET_DIR defaults to the project directory — no need to set it in .otto
+TARGET_DIR    = Path(os.getenv("TARGET_DIR", str(_project_dir))).resolve()
 TEST_COMMAND  = os.getenv("TEST_COMMAND", "")
 SOURCE_GLOB   = os.getenv("SOURCE_GLOB", "src")
 GH_BIN        = os.getenv("GH_BIN", "gh")
@@ -31,7 +39,7 @@ try:
     CODER_TIMEOUT = int(os.getenv("CODER_TIMEOUT", "600"))
     MAX_ATTEMPTS  = int(os.getenv("MAX_ATTEMPTS", "3"))
 except ValueError as e:
-    print(f"Error: invalid integer in .env — {e}", file=sys.stderr)
+    print(f"Error: invalid integer in config — {e}", file=sys.stderr)
     sys.exit(1)
 SHELL_INIT    = os.getenv("SHELL_INIT", "")
 PROMPTS_DIR   = Path(__file__).parent / "prompts"
@@ -39,7 +47,13 @@ PROMPTS_DIR   = Path(__file__).parent / "prompts"
 GITHUB_REPO = _parse_github_repo(GITHUB_REPO)
 
 if not GITHUB_REPO:
-    print("Error: GITHUB_REPO is not set. Copy .env.example to .env and fill it in.", file=sys.stderr)
+    print(
+        "Error: GITHUB_REPO is not set.\n"
+        f"  Create a .otto file in your project directory:\n"
+        f"    echo 'GITHUB_REPO=owner/repo' > {_project_dir}/.otto\n"
+        "  Or set it in otto-factory/.env for a single-project setup.",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 if GITHUB_REPO.count("/") != 1:
