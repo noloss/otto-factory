@@ -1,6 +1,6 @@
 # otto-factory
 
-**Turn a requirements document into working, tested, reviewed code without writing a single line of code yourself.**
+**Turn a requirements document into working, tested, reviewed code without writing a single line yourself.**
 
 otto-factory is an AI pipeline that acts as your development team. You describe what you want to build, and three AI agents handle the rest: one breaks the work into tasks, one writes the code, and one reviews it. Every task lives as a GitHub Issue so you can follow along and understand exactly what is happening at every step.
 
