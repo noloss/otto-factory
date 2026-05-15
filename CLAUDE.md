@@ -1,5 +1,16 @@
 # otto-factory project instructions
 
+## Test-first workflow
+
+Before making any change to `factory/`:
+
+1. Write tests for the expected new behaviour in `tests/`
+2. Make the code changes
+3. Run `pytest tests/ -v` — all tests must pass before the task is done
+4. Keep tests up-to-date: if behaviour changes, update the relevant tests (don't delete them)
+
+Run the suite with: `source venv/bin/activate && pytest tests/ -v`
+
 ## Debugging rules
 
 When an error is reported, always follow this sequence — no exceptions:
