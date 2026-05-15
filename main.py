@@ -8,7 +8,72 @@ Usage:
   python main.py review --pr <number>
 """
 import argparse
+import os
+import shutil
+import subprocess
 import sys
+from pathlib import Path
+
+# Load .env early so CLAUDE_BIN / GH_BIN overrides are visible before preflight
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / ".env")
+except ImportError:
+    pass  # dotenv not installed yet — checked below
+
+
+def _preflight():
+    """Check that required tools are installed and authenticated before running."""
+
+    # --- dotenv available? ------------------------------------------------
+    try:
+        import dotenv  # noqa: F401
+    except ImportError:
+        print("Error: python-dotenv is not installed.")
+        print("Run: pip install -r requirements.txt")
+        sys.exit(1)
+
+    # --- claude on PATH? --------------------------------------------------
+    claude_bin = os.getenv("CLAUDE_BIN", "claude")
+    if not shutil.which(claude_bin):
+        print(f"Error: '{claude_bin}' is not on your PATH.")
+        print("Install Claude Code and make sure 'claude' is available in your terminal.")
+        print("See: https://docs.anthropic.com/en/docs/claude-code")
+        sys.exit(1)
+
+    # --- gh installed? ----------------------------------------------------
+    gh_bin = os.getenv("GH_BIN", "gh")
+    if not shutil.which(gh_bin):
+        print(f"Error: '{gh_bin}' is not on your PATH.")
+        print("Install the GitHub CLI: https://cli.github.com")
+        sys.exit(1)
+
+    # --- gh authenticated? ------------------------------------------------
+    auth_check = subprocess.run(
+        [gh_bin, "auth", "status"],
+        capture_output=True,
+    )
+    if auth_check.returncode != 0:
+        print("GitHub CLI is not authenticated.")
+        try:
+            answer = input("Run 'gh auth login' now? [Y/n] ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            sys.exit(1)
+
+        if answer in ("", "y", "yes"):
+            login = subprocess.run([gh_bin, "auth", "login"])
+            if login.returncode != 0:
+                print("Authentication failed. Please run 'gh auth login' manually.", file=sys.stderr)
+                sys.exit(1)
+            # Confirm it worked
+            recheck = subprocess.run([gh_bin, "auth", "status"], capture_output=True)
+            if recheck.returncode != 0:
+                print("Still not authenticated after login. Please try 'gh auth login' manually.", file=sys.stderr)
+                sys.exit(1)
+        else:
+            print("Cannot continue without GitHub authentication.", file=sys.stderr)
+            sys.exit(1)
 
 
 def cmd_plan(args):
@@ -62,6 +127,7 @@ def main():
     p_review.add_argument("--pr", required=True, type=int, help="GitHub PR number")
 
     args = parser.parse_args()
+    _preflight()
 
     dispatch = {
         "plan":   cmd_plan,
