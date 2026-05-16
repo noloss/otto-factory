@@ -142,6 +142,7 @@ def process_issue(issue_number, milestone_title, _depth=0):
         verdict, comment = reviewer.review_pr(pr_number)
 
         if verdict == "LGTM":
+            coder.cleanup_after_merge(issue_number)
             print(f"[orchestrator] Issue #{issue_number} done. ✓")
             return
 

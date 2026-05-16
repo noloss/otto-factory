@@ -1,29 +1,67 @@
 # .otto — otto-factory project config
 #
-# Place this file in your project's root directory (alongside your code).
-# It tells otto-factory which GitHub repo and test setup to use for THIS project.
+# This file belongs in YOUR PROJECT folder (e.g. ~/my-project/.otto),
+# not inside the otto-factory folder. Copy it there and fill in the values:
 #
-# Copy to your project:
 #   cp ~/otto-factory/.otto.example ~/my-project/.otto
 #
-# Then fill in the values below.
+# Otto-factory reads this file automatically when you run commands from
+# your project directory. You do not need to reference it in any command.
+#
+# Lines starting with # are comments — they are ignored and are here to
+# explain what each setting does. Only the lines without # are active.
 
-# Required: your project's GitHub repository.
-# All of these formats are accepted:
-#   GITHUB_REPO=your-username/my-project
-#   GITHUB_REPO=https://github.com/your-username/my-project
-GITHUB_REPO=your-username/your-repo
 
-# Shell command used to run the test suite after each coder attempt.
-# Leave blank to skip automated testing.
-# Examples: "npm test", "pytest", "go test ./...", "cargo test"
+# ── Required ────────────────────────────────────────────────────────────────
+
+# Your project's GitHub repository.
+#
+# Format: your-github-username/your-repo-name
+# Example: alice/my-first-project
+#
+# You can find your username at github.com — it appears in the top-right
+# corner when you are signed in. The repo name must match exactly what
+# appears on GitHub (it is case-sensitive).
+#
+# Full URLs also work:
+#   GITHUB_REPO=https://github.com/alice/my-first-project
+#
+GITHUB_REPO=your-username/your-repo-name
+
+
+# ── Optional ────────────────────────────────────────────────────────────────
+
+# Shell command to run your test suite after each coding attempt.
+#
+# After the coder writes new code, otto-factory runs this command to check
+# whether the tests pass. If they fail, the output is sent back to the coder
+# as feedback so it can fix the problem before opening a Pull Request.
+#
+# Leave this blank if your project has no automated tests — that is fine,
+# especially for simple projects or when just getting started.
+#
+# Examples:
+#   TEST_COMMAND=npm test          ← JavaScript / Node.js
+#   TEST_COMMAND=pytest            ← Python
+#   TEST_COMMAND=go test ./...     ← Go
+#   TEST_COMMAND=cargo test        ← Rust
+#
+# Note: if your runtime (node, python, etc.) is installed via a version
+# manager like nvm or pyenv, you may also need to set SHELL_INIT in
+# otto-factory/.env. See the Configuration reference in the README.
+#
 TEST_COMMAND=
 
-# The folder (relative to this project's root) that the coder stages with `git add`
-# before committing. Use "." if your project files are at the root with no src/ folder.
-# Default: src
+# The folder the coder stages with `git add` before committing.
+#
+# When the coder finishes writing files, it runs `git add <SOURCE_GLOB>`
+# to stage them. This setting controls which folder gets staged.
+#
+# Use "src" (the default) if all your code lives in a src/ subfolder.
+# Use "." if your project files are at the root level with no src/ folder.
+#
+# If you are unsure, look at where your project's main files are:
+#   - Files at ~/my-project/index.html, ~/my-project/app.js → use SOURCE_GLOB=.
+#   - Files at ~/my-project/src/index.html, ~/my-project/src/app.js → use SOURCE_GLOB=src
+#
 SOURCE_GLOB=src
-
-# Optional: instruct the coder to follow project-specific rules.
-# See "Per-project CLAUDE.md" in the otto-factory README.
-# (No setting needed — just create a CLAUDE.md file in this directory.)

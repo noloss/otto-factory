@@ -43,3 +43,39 @@ class TestRunMilestoneRateLimitAbort:
     def test_no_issues_returns_early(self):
         with patch.object(ghc, "get_issues", return_value=[]):
             orch.run_milestone("Release 1")  # should not raise or call process_issue
+
+
+class TestCleanupCalledAfterLGTM:
+    """After a LGTM verdict, process_issue must call coder.cleanup_after_merge."""
+
+    def _make_issue(self, number):
+        return {"number": number, "title": f"Issue {number}", "body": "body", "labels": []}
+
+    def test_cleanup_called_on_lgtm(self):
+        with patch.object(ghc, "get_issue", return_value=self._make_issue(1)):
+            with patch.object(ghc, "is_issue_done", return_value=False):
+                with patch.object(ghc, "find_open_pr_for_issue", return_value=None):
+                    with patch.object(orch, "run_tests", return_value=(True, "")):
+                        import factory.coder as coder_mod
+                        with patch.object(coder_mod, "run_issue", return_value=10):
+                            with patch.object(coder_mod, "cleanup_after_merge") as mock_cleanup:
+                                import factory.reviewer as rev_mod
+                                with patch.object(rev_mod, "review_pr", return_value=("LGTM", "")):
+                                    orch.process_issue(1, "Release 1")
+
+        mock_cleanup.assert_called_once_with(1)
+
+    def test_cleanup_not_called_when_reviewer_rejects(self):
+        with patch.object(ghc, "get_issue", return_value=self._make_issue(1)):
+            with patch.object(ghc, "is_issue_done", return_value=False):
+                with patch.object(ghc, "find_open_pr_for_issue", return_value=None):
+                    with patch.object(ghc, "update_label", return_value=None):
+                        with patch.object(orch, "run_tests", return_value=(True, "")):
+                            import factory.coder as coder_mod
+                            with patch.object(coder_mod, "run_issue", return_value=10):
+                                with patch.object(coder_mod, "cleanup_after_merge") as mock_cleanup:
+                                    import factory.reviewer as rev_mod
+                                    with patch.object(rev_mod, "review_pr", return_value=("CHANGES_REQUESTED", "fix it")):
+                                        orch.process_issue(1, "Release 1")
+
+        mock_cleanup.assert_not_called()

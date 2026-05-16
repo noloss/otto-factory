@@ -1,6 +1,8 @@
 """Tests for pure helpers in factory/coder.py."""
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch, call
 
+import factory.coder as coder
+import factory.github_client as ghc
 from factory.coder import _slug, _parse_count
 
 
@@ -44,3 +46,54 @@ class TestParseCount:
 
     def test_strips_whitespace(self):
         assert _parse_count(self._result("  7  \n")) == 7
+
+
+class TestCleanupAfterMerge:
+    def _git_ok(self, *_args, **_kwargs):
+        r = MagicMock()
+        r.returncode = 0
+        r.stdout = ""
+        r.stderr = ""
+        return r
+
+    def _git_fail(self, *_args, **_kwargs):
+        r = MagicMock()
+        r.returncode = 1
+        r.stdout = ""
+        r.stderr = "error"
+        return r
+
+    def test_checks_out_main_pulls_and_deletes_branch(self):
+        git_calls = []
+
+        def fake_git(args, check=True):
+            git_calls.append(args)
+            return self._git_ok()
+
+        with patch.object(ghc, "get_issue", return_value={"title": "Add login page", "body": ""}):
+            with patch.object(coder, "_git", side_effect=fake_git):
+                coder.cleanup_after_merge(7)
+
+        assert ["checkout", "main"] in git_calls
+        assert ["pull", "origin", "main"] in git_calls
+        assert ["branch", "-d", "feature/issue-7-add-login-page"] in git_calls
+
+    def test_force_deletes_when_soft_delete_fails(self):
+        git_calls = []
+
+        def fake_git(args, check=True):
+            git_calls.append(args)
+            if args[:2] == ["branch", "-d"]:
+                return self._git_fail()
+            return self._git_ok()
+
+        with patch.object(ghc, "get_issue", return_value={"title": "Add login page", "body": ""}):
+            with patch.object(coder, "_git", side_effect=fake_git):
+                coder.cleanup_after_merge(7)
+
+        assert ["branch", "-D", "feature/issue-7-add-login-page"] in git_calls
+
+    def test_does_not_raise_when_git_fails(self):
+        with patch.object(ghc, "get_issue", return_value={"title": "Add login", "body": ""}):
+            with patch.object(coder, "_git", side_effect=Exception("git exploded")):
+                coder.cleanup_after_merge(5)  # must not raise

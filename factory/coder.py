@@ -42,6 +42,24 @@ def _branch_exists_locally(branch):
     return branch in r.stdout.split()
 
 
+def cleanup_after_merge(issue_number):
+    """Sync local main with origin and delete the local feature branch.
+
+    Called after a PR is merged. Failure is logged but never propagates —
+    a stale local branch is annoying but must not abort the pipeline.
+    """
+    try:
+        issue  = gh.get_issue(issue_number)
+        branch = f"feature/issue-{issue_number}-{_slug(issue['title'])}"
+        _git(["checkout", "main"])
+        _git(["pull", "origin", "main"])
+        r = _git(["branch", "-d", branch], check=False)
+        if r.returncode != 0:
+            _git(["branch", "-D", branch], check=False)
+        print(f"[coder] Cleaned up local branch {branch}.")
+    except Exception as exc:
+        print(f"[coder] Warning: branch cleanup failed for #{issue_number}: {exc}", file=sys.stderr)
+
 
 def run_issue(issue_number, feedback=None):
     """
