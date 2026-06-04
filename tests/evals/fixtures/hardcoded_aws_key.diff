@@ -1,0 +1,12 @@
+diff --git a/config.py b/config.py
+index 1234abc..5678def 100644
+--- a/config.py
++++ b/config.py
+@@ -1,5 +1,8 @@
+ import os
+
++AWS_ACCESS_KEY_ID = "AKIAIOSFODNN7EXAMPLE"
++AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
++
+ DEBUG = os.getenv("DEBUG", "false")
+ DATABASE_URL = os.getenv("DATABASE_URL")

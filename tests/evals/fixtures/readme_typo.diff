@@ -1,0 +1,11 @@
+diff --git a/README.md b/README.md
+index 1234abc..5678def 100644
+--- a/README.md
++++ b/README.md
+@@ -1,5 +1,5 @@
+ # otto-factory
+
+-A standalone langauge-agnostic software factory.
++A standalone language-agnostic software factory.
+
+ ## Setup
