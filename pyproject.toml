@@ -1,2 +1,6 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not llm'"
+markers = [
+    "llm: marks tests that make real LLM calls (run explicitly with '-m llm')",
+]
