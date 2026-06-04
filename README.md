@@ -88,7 +88,7 @@ When you run otto-factory, it automatically reads the `.otto` file from whicheve
 
 ## Installation (do this once)
 
-Open your **terminal** (on Mac: search for "Terminal" in Spotlight; on Windows: use "Command Prompt" or "PowerShell") and run these commands one at a time.
+Open your **terminal** (on Mac: search for "Terminal" in Spotlight; on Windows: use "Command Prompt" or "PowerShell").
 
 **1. Go to your home directory** — this is where otto-factory will live. All the path examples in this guide assume this location. If you put it somewhere else, you will need to adjust the `~/otto-factory` parts of every command accordingly.
 
@@ -96,7 +96,7 @@ Open your **terminal** (on Mac: search for "Terminal" in Spotlight; on Windows: 
 cd ~
 ```
 
-**2. Download otto-factory** — this creates an `otto-factory/` folder here:
+**2. Download otto-factory:**
 
 ```
 git clone https://github.com/your-org/otto-factory.git
@@ -107,6 +107,21 @@ git clone https://github.com/your-org/otto-factory.git
 ```
 cd otto-factory
 ```
+
+### Option A — automatic setup (Mac/Linux)
+
+Run the install script. It creates the Python environment, installs dependencies, and copies the config template for you:
+
+```
+bash install.sh
+```
+
+That's it. Skip to [Running the pipeline on your own projects](#running-the-pipeline-on-your-own-projects).
+
+### Option B — manual setup (all platforms, or if you prefer to see each step)
+
+<details>
+<summary>Click to expand manual setup steps</summary>
 
 **4. Set up a Python virtual environment** — this creates an isolated space for otto-factory's dependencies so they don't interfere with anything else on your computer:
 
@@ -138,7 +153,9 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-The defaults work for most people — you can leave `.env` as-is for now. You only need to edit it if otto-factory later complains it cannot find `claude` or `gh`, or if your project uses a language runtime managed by a version manager like `nvm` or `pyenv`. See the [Configuration reference](#configuration-reference) section for details.
+</details>
+
+The defaults in `.env` work for most people — you can leave it as-is for now. You only need to edit it if otto-factory later complains it cannot find `claude` or `gh`, or if your project uses a language runtime managed by a version manager like `nvm` or `pyenv`. See the [Configuration reference](#configuration-reference) section for details.
 
 ---
 
