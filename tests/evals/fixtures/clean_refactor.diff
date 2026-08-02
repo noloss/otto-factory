@@ -1,0 +1,21 @@
+diff --git a/utils.py b/utils.py
+index 1234abc..5678def 100644
+--- a/utils.py
++++ b/utils.py
+@@ -1,6 +1,4 @@
+ def format_findings(findings):
+-    result = ""
+-    for f in findings:
+-        result = result + "- " + f + "\n"
+-    return result
++    return "".join(f"- {f}\n" for f in findings)
+diff --git a/tests/test_utils.py b/tests/test_utils.py
+new file mode 100644
+index 0000000..1234abc
+--- /dev/null
++++ b/tests/test_utils.py
+@@ -0,0 +1,5 @@
++from utils import format_findings
++
++def test_format_findings():
++    assert format_findings(["a", "b"]) == "- a\n- b\n"

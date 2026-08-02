@@ -3,6 +3,7 @@ import subprocess
 import sys
 import threading
 import time
+from langsmith import traceable
 from .config import CLAUDE_BIN
 
 DEFAULT_TOOLS = "Write,Read,Edit,Glob,Grep,LS,Bash"
@@ -84,6 +85,7 @@ def _parse_result(raw, schema=None):
     return json.loads(text_str)
 
 
+@traceable(name="run_claude", run_type="llm")
 def run_claude(prompt, system=None, schema=None, tools=DEFAULT_TOOLS, timeout=120, label="llm"):
     """
     Synchronous Claude call. Returns (success: bool, result: str | dict | list).
